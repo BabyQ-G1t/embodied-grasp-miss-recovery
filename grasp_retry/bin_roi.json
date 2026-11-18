@@ -1,0 +1,37 @@
+{
+  "bin": [
+    210,
+    116,
+    254,
+    161
+  ],
+  "pick": [
+    208,
+    274,
+    262,
+    188
+  ],
+  "saved_at": "2026-11-08 15:17:48",
+  "source": "auto color detect @ 1108最新环境照.png (fill 0.905 / 0.942)",
+  "thr": {
+    "bin_plate": "H 12-25 & S>140 & V>180",
+    "pick_plate": "H 95-120 & S>90 & V>120",
+    "red": "(H<=10 | H>=170) & S>90 & V>70",
+    "gray": "S<125 & 50<=V<=130"
+  },
+  "baseline": {
+    "note": "像素基线不再用于判定；judge 走实例计数，基线无关"
+  },
+  "shape": {
+    "red": "area 1100-1900, side 34-58, fill 0.55-0.90",
+    "gray": "area 800-1900, side 34-62, fill 0.45-0.97 (斜放也认)"
+  },
+  "validated_on": "OPQ_1108_ALL_36 (36 集): 首帧召回 100% / 末帧命中 100% / 空盘误检 0%",
+  "judge_20261108": {
+    "mask": "低饱和灰(S<100, 30<V<170) ∪ 深色(V<=100)；红色路默认关闭",
+    "why": "黄板反光把灰块浸成 H10/S190/V45，只靠 S<100 会整块漏检；红圆柱是固定干扰物，进候选会被 select_blocks 选中导致原位框画在红柱上（P1_14 误判 EMPTY）",
+    "select": "候选中心必须在 bin ∪ pick 外接矩形内，踢掉画面上沿的夹爪",
+    "validated": "P1_05=EMPTY / P1_06=LOST / P1_11=SUCCESS / P1_14=SUCCESS（与实拍一致）",
+    "code": "run_trial.mask_of(dark_v) / target_boxes；judge_now 同步"
+  }
+}

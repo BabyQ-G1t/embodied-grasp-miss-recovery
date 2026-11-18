@@ -1,0 +1,32 @@
+# 运行产物
+trial_logs/
+demo_logs/
+check_out/
+verify_out/
+scan_out/
+*_preview.png
+agent/agent_state.json
+agent/config.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# 权重与数据集（走 Release，不入库）
+models/
+*.pt
+*.pth
+*.bin
+*.onnx
+*.safetensors
+shuren2/
+OPQ_*/
+
+# 编辑器与系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

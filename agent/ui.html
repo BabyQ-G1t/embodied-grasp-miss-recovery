@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>桌面清理 · 指令台</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --line:#e4e7ec; --text:#171a1f;
+    --muted:#6b7280; --brand:#1f5eff; --ok:#0f9d58; --warn:#c2410c; --red:#d93025;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Courier New",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:15px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif}
+  .wrap{max-width:960px;margin:0 auto;padding:28px 20px 60px}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+  h1{font-size:19px;margin:0;font-weight:650;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:12.5px;margin-left:auto}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:0 0 auto}
+  .dot.idle{background:#9aa3af}
+  .dot.running{background:var(--brand);box-shadow:0 0 0 4px rgba(31,94,255,.14);animation:p 1.4s infinite}
+  .dot.done{background:var(--ok)} .dot.rejected{background:var(--warn)}
+  .dot.unsafe,.dot.stopped{background:var(--red)}
+  @keyframes p{0%,100%{opacity:1}50%{opacity:.35}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .card+.card{margin-top:14px}
+  .bar{display:flex;gap:10px}
+  input[type=text]{flex:1;padding:12px 14px;border:1px solid var(--line);border-radius:9px;
+       font-size:15px;outline:none;background:#fff;color:inherit}
+  input[type=text]:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(31,94,255,.10)}
+  button{border:1px solid var(--line);background:#fff;color:var(--text);padding:11px 16px;
+       border-radius:9px;font-size:14px;cursor:pointer;transition:.14s;font-family:inherit}
+  button:hover{border-color:#c9cfd8;background:#fbfcfd}
+  button.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  button.primary:hover{background:#1a52e0}
+  button.rec{min-width:104px}
+  button.rec.on{background:var(--red);border-color:var(--red);color:#fff}
+  button.danger{color:var(--red);border-color:#f2c6c2;background:#fff7f6}
+  button.danger:hover{background:#fdeceb}
+  button.ghost{color:var(--muted)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  .cfg{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:14px;
+       padding-top:14px;border-top:1px dashed var(--line)}
+  .cfg label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+  select{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;
+         color:inherit;font-size:13.5px;font-family:inherit;cursor:pointer;outline:none}
+  select:focus{border-color:var(--brand);box-shadow:0 0 0 3px rgba(31,94,255,.10)}
+  .cfg .warnx{color:var(--warn);font-size:12px}
+  .hint{color:var(--muted);font-size:12.5px}
+  .say{margin-top:12px;padding:12px 14px;border-radius:9px;background:#f2f6ff;
+       border:1px solid #d8e3ff;font-size:14px;min-height:20px}
+  .say.bad{background:#fff7f6;border-color:#f6d5d2}
+  .pending{margin-top:12px;padding:14px;border:1px dashed #f0c36d;background:#fffbf0;border-radius:10px;
+           display:none;align-items:center;gap:12px;flex-wrap:wrap}
+  .pending.show{display:flex}
+  .kd{font-family:var(--mono);color:var(--warn);font-weight:600}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+  @media(max-width:720px){.grid{grid-template-columns:1fr}}
+  h2{font-size:13px;margin:0 0 10px;font-weight:650;color:var(--muted);
+     letter-spacing:.06em;text-transform:uppercase}
+  #log{font-family:var(--mono);font-size:12.5px;line-height:1.75;background:#fbfcfd;
+       border:1px solid var(--line);border-radius:9px;padding:12px;height:260px;overflow:auto;
+       white-space:pre-wrap;word-break:break-all;color:#39414d}
+  #log .w{color:var(--warn)} #log .e{color:var(--red);font-weight:600}
+  .kf{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .kf figure{margin:0}
+  .kf img{width:100%;border-radius:8px;border:1px solid var(--line);display:block;background:#eef1f5}
+  .kf figcaption{font-size:11.5px;color:var(--muted);margin-top:5px;font-family:var(--mono)}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px}
+  .kv b{font-weight:600}
+  .kv b.ok{color:var(--ok)} .kv b.bad{color:var(--red)} .kv b.warn{color:var(--warn)}
+  .kv span{color:var(--muted);font-family:var(--mono)}
+  .mic-tip{font-size:12px;color:var(--muted);margin-top:8px}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11.5px;
+         background:#eef2ff;color:#3b56c9;border:1px solid #dbe3ff}
+
+  /* ---------- 录音浮层（点一下开始录音时弹出） ---------- */
+  #recMask{position:fixed;inset:0;background:rgba(16,22,34,.28);z-index:60;
+           opacity:0;pointer-events:none;transition:opacity .18s ease}
+  #recMask.show{opacity:1}
+  #recBox{position:fixed;left:50%;top:50%;z-index:61;width:min(320px,84vw);
+          padding:22px 20px 16px;border-radius:18px;background:var(--panel);
+          border:1px solid var(--line);box-shadow:0 24px 64px rgba(10,20,40,.26);
+          text-align:center;opacity:0;pointer-events:none;
+          transform:translate(-50%,-50%) scale(.94);
+          transition:opacity .18s ease,transform .18s cubic-bezier(.2,.9,.3,1.2)}
+  #recBox.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+  .rb-title{font-size:15px;font-weight:650;line-height:1.4}
+  .rb-title.bad{color:var(--red)} .rb-title.ok{color:var(--ok)}
+  #rbWave{display:block;margin:12px auto 8px;width:260px;height:56px}
+  .rb-time{font-family:var(--mono);font-size:19px;font-weight:600;letter-spacing:.6px;
+           font-variant-numeric:tabular-nums}
+  .rb-hint{font-size:12.5px;color:var(--muted);margin-top:6px;min-height:18px}
+  .rb-hint.bad{color:var(--red)}
+  .rb-cancel{margin-top:12px;padding:6px 16px;font-size:12.5px;font-family:inherit;
+             color:var(--muted);background:none;border:1px solid var(--line);
+             border-radius:10px;cursor:pointer}
+  .rb-cancel:hover{color:var(--red);border-color:#f0b8b3}
+  .rb-cancel[hidden]{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="dot idle" id="dot"></span>
+    <h1>桌面清理 · 指令台</h1>
+    <span class="sub" id="clock">—</span>
+  </header>
+
+  <div class="card">
+    <div class="bar">
+      <input id="cmd" type="text" placeholder="说点什么，比如：清理灰色方块" autocomplete="off">
+      <button class="primary" id="send">下达</button>
+      <button class="rec" id="rec">🎤 点一下说指令</button>
+    </div>
+    <div class="row">
+      <button class="ghost" id="bStatus">状态</button>
+      <button class="ghost" id="bReady">体检</button>
+      <button class="ghost" id="bHelp">帮助</button>
+      <span style="flex:1"></span>
+      <button class="danger" id="bStop">早停 ⏹</button>
+    </div>
+    <div class="say" id="say">空闲。输入文字，或点一下 🎤 说「清理灰色方块」。</div>
+    <div class="pending" id="pending">
+      <span>待确认：<b id="pText"></b></span>
+      <span class="kd" id="pCd">30s</span>
+      <span style="flex:1"></span>
+      <button class="primary" id="bConfirm">确认执行</button>
+      <button id="bCancel">取消</button>
+    </div>
+    <div class="mic-tip" id="micTip"></div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>机械臂端日志</h2>
+      <div id="log">等待指令…</div>
+    </div>
+    <div class="card">
+      <h2>本轮结果</h2>
+      <div class="kv" id="result"><span>—</span><b>尚无执行记录</b></div>
+      <h2 style="margin-top:18px">关键帧</h2>
+      <div class="kf" id="kf"><span class="hint">执行结束后显示开局帧与末帧</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 录音浮层：点一下开始录音时出现，波形由真实麦克风电平驱动 -->
+<div id="recMask"></div>
+<div id="recBox">
+  <div class="rb-title" id="rbTitle">正在听…</div>
+  <canvas id="rbWave" width="520" height="112"></canvas>
+  <div class="rb-time" id="rbTime">0.0s</div>
+  <div class="rb-hint" id="rbHint">再点一下按钮结束并识别</div>
+  <button class="rb-cancel" id="rbCancel" hidden>取消这次录音</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let since = 0, lastState = "", pendingUntil = 0, timer = null, recorder = null, chunks = [], lastStopKey = "";
+
+// ---------- 轮询 ----------
+async function poll(){
+  try{
+    const r = await fetch(`/api/state?since=${since}`);
+    const s = await r.json();
+    if (s.lines && s.lines.length){
+      const box = $('log');
+      if (!box.dataset.started){ box.textContent = ''; box.dataset.started = '1'; }
+      for (const ln of s.lines){
+        const d = document.createElement('div');
+        d.textContent = ln;
+        if (/\[!\]|未确认|失败|异常/.test(ln)) d.className = 'e';
+        else if (/\[安全\]|作废|超时/.test(ln)) d.className = 'w';
+        box.appendChild(d);
+      }
+      box.scrollTop = box.scrollHeight;
+    }
+    // 每次都以服务端游标为准：新一轮开始时服务端会清零 lines，
+    // 本地游标必须跟着回退（直接归 0），否则新日志会被 since 挡住看不见。
+    if (typeof s.seq === 'number') since = (s.seq < since) ? 0 : s.seq;
+    render(s);
+  }catch(e){
+    $('dot').className = 'dot unsafe';
+    $('say').textContent = '总控服务连不上，检查 agent_server.py 是否还在跑。';
+  }
+}
+function render(s){
+  const changed = s.state !== lastState;
+  $('dot').className = 'dot ' + (s.state || 'idle');
+  if (changed){
+    lastState = s.state;
+    if (s.state === 'running'){
+      // 新的一轮开始：结果区与关键帧立即清空，不留上一轮的结论
+      $('result').innerHTML = '<span>—</span><b>启动中…</b>';
+      $('kf').innerHTML = '<span class="hint">本轮结束后显示开局帧与末帧</span>';
+      lastStopKey = '';                 // 上一轮的补判结论不再续用
+    }
+    if (s.message && (s.state === 'done' || s.state === 'rejected' ||
+                      s.state === 'unsafe' || s.state === 'stopped')){
+      // 只有"没停住/没开始"才用红底；早停成功是用户主动做的，不用报警配色
+      showSay(s.message, s.state === 'unsafe' || s.state === 'rejected');
+      speak(s.message);
+      loadImages(s.images || []);
+    }
+  }
+  if (s.state === 'running' || s.state === 'stopping'){
+    $('clock').textContent = `执行中 ${s.elapsed}s`;
+    renderPhase(s);
+  } else if (s.state === 'done'){
+    $('clock').textContent = `完成于 ${new Date(s.ended_at*1000).toLocaleTimeString('zh-CN')}`;
+    if (changed) showResult(s.result);
+  } else if (s.state === 'stopped' || s.state === 'unsafe'){
+    // 早停：结论只在状态变化、或补判结果刷新（ver 变了）时写一次；
+    // 刷新页面不重放上一轮（initView 会把 lastStopKey 对齐成当前值）。
+    const when = s.ended_at ? new Date(s.ended_at*1000).toLocaleTimeString('zh-CN') : '';
+    $('clock').textContent = (s.state === 'stopped' ? '早停于 ' : '停机未确认 ') + when;
+    const sm = s.stop_summary || null;
+    const key = sm ? `${sm.ver || 0}` : 'none';
+    if (changed || key !== lastStopKey){
+      lastStopKey = key;
+      renderStop(sm, s.state, s.cmd);
+      if (!(s.images || []).length){
+        $('kf').innerHTML = '<span class="hint">已早停，本轮没有末帧</span>';
+      }
+    }
+  } else {
+    $('clock').textContent = '空闲';
+  }
+}
+function showSay(t, bad){ const e=$('say'); e.textContent=t; e.className='say'+(bad?' bad':''); }
+function speak(t){
+  if (!('speechSynthesis' in window) || !t) return;
+  const u = new SpeechSynthesisUtterance(t.slice(0,120));
+  u.lang = 'zh-CN'; u.rate = 1.05; speechSynthesis.speak(u);
+}
+// 阶段读秒：phase 与 phase_since 全部由后端按 LeLab 日志的真实事件给出，
+// 前端只负责显示，不猜、不插值、不做"预计剩余时间"。
+// 机械臂真正开始动之前，这里不会出现"任务执行中"。
+function renderPhase(s){
+  if (!s.phase){ $('result').innerHTML = '<span>—</span><b>执行中…</b>'; return; }
+  const label = s.phase_label || '执行中';
+  const sec = s.phase_elapsed || 0;
+  let tail = '';
+  if (s.phase === 'execute' && s.duration_s) tail = ` / ${s.duration_s}`;
+  let html = `<span>${label}</span><b>${sec}s${tail}</b>`;
+  if (s.round) html += `<span>轮次</span><b>第 ${s.round}${s.rounds_cap ? ' / ' + s.rounds_cap : ''} 轮</b>`;
+  $('result').innerHTML = html;
+}
+function showResult(rec){
+  if (!rec) return;
+  const map = {'M2 最终入区1/0':'最终入区','A1 实际执行轮数':'执行轮数',
+               'M3 首次成功轮次':'首次成功轮次','M4 成功后仍启动推理次数j':'M4 避免推理(j)',
+               'A3 安全中止未执行轮次':'A3 安全中止','抓空次数':'抓空次数',
+               'A2 耗时s':'耗时(s)','试验状态':'试验状态'};
+  $('result').innerHTML = Object.entries(map)
+    .filter(([k]) => rec[k] !== undefined && rec[k] !== null && String(rec[k]).trim() !== '')
+    .map(([k,v]) => `<span>${v}</span><b>${rec[k]}</b>`).join('');
+}
+// 早停后的「本轮结果」：只回答一件事——这条指令到底完成没有。
+// 不再出现「早停成功」这种"停止动作本身"的判定，也不显示轮次。
+// judged=true 表示 run_trial 已经把这轮写进 trials.csv（真的判过），否则只能说"没跑到判定"。
+function renderStop(sm, state, cmd){
+  const task = cmd || '清理灰色方块';
+  if (!sm){
+    $('result').innerHTML = `<span>指令</span><b>${task}</b>` +
+      `<span>完成情况</span><b class="${state === 'stopped' ? '' : 'bad'}">` +
+      (state === 'stopped' ? '已停止' : '停机未确认') + '</b>';
+    return;
+  }
+  const arm = sm.ok ? '已确认停止' : '未确认停止，请断电';
+  // 补判回来的 reason 前半句是人话、后面是原始数字，卡片先只留前半句
+  const short = sm.reason ? String(sm.reason).split('；')[0] : '';
+  let done, why, cls;
+  if (sm.was_running === false){
+    done = '未开始'; why = '当时没有在跑的任务'; cls = '';
+  } else if (sm.judging){
+    done = '判定中'; why = '机械臂已停，正在补拍一帧做判定…'; cls = 'warn';
+  } else if (sm.judged && sm.task_ok){
+    done = '已完成'; why = short || '方块已进收纳区'; cls = 'ok';
+  } else if (sm.judged){
+    // 判过、但没进收纳区 —— 真的没干成
+    done = '未完成'; why = short || '方块未进收纳区'; cls = 'bad';
+  } else {
+    // 没跑到判定、补判也没做成 —— 不是"失败"，是"不知道"
+    done = '未判定';
+    why = short ? `补判没做成：${short}` : `执行到 ${sm.elapsed || 0}s 被早停，没跑到判定`;
+    cls = 'warn';
+  }
+  $('result').innerHTML =
+    `<span>指令</span><b>${task}</b>` +
+    `<span>完成情况</span><b class="${cls}">${done}</b>` +
+    `<span>说明</span><b>${why}</b>` +
+    `<span>机械臂</span><b class="${sm.ok ? 'ok' : 'bad'}">${arm}</b>`;
+}
+async function loadImages(names){
+  if (!names.length){ return; }
+  $('kf').innerHTML = names.map((n,i) =>
+    `<figure><img src="/files/${n}?t=${Date.now()}" onerror="this.parentNode.remove()">
+     <figcaption>${i===0?'开局帧':n.replace(/^.*_a?/,'第 ').replace('.png',' 轮后')}</figcaption></figure>`).join('');
+}
+
+// ---------- 下达 ----------
+// 分组 / 位置 / 块数不再在页面暴露：实验固定 B 组、单块，
+// 位置由话里点名（"清理 P2"）或 config.json 决定，页面不传任何配置。
+function params(){ return {}; }
+
+async function send(text){
+  if (!text.trim()) return;
+  const r = await fetch('/api/cmd', {method:'POST', headers:{'Content-Type':'application/json'},
+                                     body: JSON.stringify(Object.assign({text}, params()))});
+  const j = await r.json();
+  applyReply(j);
+}
+function applyReply(j){
+  showSay(j.say || '', !j.ok && !j.need_confirm);
+  if (j.say) speak(j.say);
+  if (j.need_confirm){
+    pendingUntil = Date.now() + j.pending_ttl*1000;
+    $('pending').classList.add('show');
+    $('pText').textContent = `「${j.text}」`;
+    startCountdown();
+  } else {
+    $('pending').classList.remove('show');
+  }
+}
+function startCountdown(){
+  clearInterval(timer);
+  timer = setInterval(() => {
+    const left = Math.max(0, Math.ceil((pendingUntil - Date.now())/1000));
+    $('pCd').textContent = left + 's';
+    if (left <= 0){ clearInterval(timer); $('pending').classList.remove('show'); }
+  }, 250);
+}
+
+$('send').onclick = () => { send($('cmd').value); $('cmd').value=''; };
+$('cmd').onkeydown = e => { if (e.key === 'Enter'){ send($('cmd').value); $('cmd').value=''; } };
+$('bStatus').onclick = () => send('状态');
+$('bReady').onclick  = () => send('体检');
+$('bHelp').onclick   = () => send('帮助');
+$('bStop').onclick   = () => fetch('/api/stop', {method:'POST'}).then(r=>r.json()).then(applyReply);
+$('bConfirm').onclick= () => { $('pending').classList.remove('show');
+                               fetch('/api/confirm',{method:'POST'}).then(r=>r.json()).then(applyReply); };
+$('bCancel').onclick = () => { $('pending').classList.remove('show');
+                               fetch('/api/cancel',{method:'POST'}).then(r=>r.json()).then(applyReply); };
+
+// ---------- 录音：点一下开始 → 浮层（实时波形 / 读秒）→ 再点一下结束并识别 ----------
+// 不做"按住"语义：鼠标一移出按钮就被判成松手，说长句很容易被打断；
+// 波形不是装饰动画，取 AnalyserNode 的实时频谱，环境安静时会明显变平；
+// 读秒从录音真正开始算，不是从点击算；Esc 或浮层里的「取消」丢弃本次录音（不上传）。
+const RB_BARS = 32, RB_CW = 520, RB_CH = 112, RB_GAP = 6;
+const rbPrev = new Array(RB_BARS).fill(0);
+const recBtn = $('rec');
+const REC_MAX_MS = 30000;                 // 忘点结束时兜底：30 秒自动结束并照常识别
+
+const BTN_IDLE = '🎤 点一下说指令';
+const BTN_REC  = '■ 结束并识别';
+const BTN_ASR  = '识别中…';
+
+let recState = 'idle';        // idle | arming | recording | stopping | asr
+let recGen = 0;               // 请求代号：取消时 +1，让还在等授权的旧请求自己作废
+let discard = false;
+let recT0 = 0, recRAF = 0, recTicker = 0, recCloseT = 0, recMaxT = 0;
+let audioCtx = null, analyser = null, freqBuf = null, recStream = null;
+let recBusy = false;
+
+function setRecBtn(label, on){
+  recBtn.textContent = label;
+  recBtn.classList.toggle('on', !!on);
+}
+function rbShow(title, hint, tone){
+  $('recMask').classList.add('show');
+  $('recBox').classList.add('show');
+  $('rbTitle').textContent = title;
+  $('rbTitle').className = 'rb-title' + (tone ? ' ' + tone : '');
+  $('rbHint').textContent = hint || '';
+  $('rbHint').className = 'rb-hint' + (tone === 'bad' ? ' bad' : '');
+  // 「取消」只在真的能取消时给：录音中、或麦克风还在启动
+  $('rbCancel').hidden = !(recState === 'recording' || recState === 'arming');
+}
+function rbClose(ms){
+  clearTimeout(recCloseT);
+  const done = () => {
+    clearInterval(recTicker); cancelAnimationFrame(recRAF); recRAF = 0;
+    $('recMask').classList.remove('show');
+    $('recBox').classList.remove('show');
+    const cv = $('rbWave');
+    cv.getContext('2d').clearRect(0, 0, RB_CW, RB_CH);
+    rbPrev.fill(0);
+  };
+  if (ms > 0) recCloseT = setTimeout(done, ms); else done();
+}
+function roundRect(c, x, y, w, h, r){
+  r = Math.min(r, w / 2, h / 2);
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+// 真实电平 → 柱高；峰值保持 + 衰减，避免单帧抖动造成闪烁
+function drawBars(){
+  const cv = $('rbWave'), c = cv.getContext('2d');
+  c.clearRect(0, 0, RB_CW, RB_CH);
+  const bw = (RB_CW - RB_GAP * (RB_BARS - 1)) / RB_BARS;
+  let data = null;
+  if (analyser && freqBuf){
+    analyser.getByteFrequencyData(freqBuf);
+    data = freqBuf;
+  }
+  for (let i = 0; i < RB_BARS; i++){
+    let t = 0;
+    if (data){
+      const L = data.length;
+      const a = Math.floor(Math.pow(i / RB_BARS, 1.5) * L * 0.5);
+      const b = Math.max(a + 1, Math.floor(Math.pow((i + 1) / RB_BARS, 1.5) * L * 0.5));
+      let s = 0;
+      for (let k = a; k < b; k++) s += data[k];
+      t = Math.min(1, (s / (b - a)) / 180);
+    } else if (recState === 'asr'){
+      t = 0.20 + 0.18 * Math.sin(Date.now() / 150 + i * 0.55);
+    }
+    rbPrev[i] = Math.max(t, rbPrev[i] * 0.84);
+    const h = Math.max(5, rbPrev[i] * (RB_CH - 8));
+    c.fillStyle = recState === 'asr' ? '#9aa3af' : '#1f5eff';
+    roundRect(c, i * (bw + RB_GAP), (RB_CH - h) / 2, bw, h, bw / 2);
+    c.fill();
+  }
+}
+function waveLoop(){
+  cancelAnimationFrame(recRAF);
+  const step = () => {
+    drawBars();
+    if (recState === 'recording' || recState === 'stopping' || recState === 'asr'){
+      recRAF = requestAnimationFrame(step);
+    }
+  };
+  recRAF = requestAnimationFrame(step);
+}
+function startTicker(){
+  clearInterval(recTicker);
+  const upd = () => { $('rbTime').textContent = ((Date.now() - recT0) / 1000).toFixed(1) + 's'; };
+  upd();
+  recTicker = setInterval(upd, 100);
+}
+function cleanupAudio(){
+  clearInterval(recTicker); recTicker = 0;
+  cancelAnimationFrame(recRAF); recRAF = 0;
+  if (recStream){ recStream.getTracks().forEach(t => t.stop()); recStream = null; }
+  if (audioCtx){ try{ audioCtx.close(); }catch(e){} audioCtx = null; }
+  analyser = null; freqBuf = null;
+}
+
+async function beginRec(){
+  if (recState !== 'idle' || recBusy) return;
+  if (!navigator.mediaDevices){
+    $('micTip').textContent = '这个浏览器不支持麦克风（需要 http://127.0.0.1 或 https 打开）。';
+    return;
+  }
+  const gen = ++recGen;                 // 本次请求的代号，取消后自动作废
+  recBusy = true; recState = 'arming'; discard = false;
+  rbShow('麦克风启动中…', '首次使用会请求授权', '');
+  rbPrev.fill(0); drawBars();
+
+  let stream;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({audio:true});
+  }catch(e){
+    if (gen !== recGen) return;            // 这次请求已被取消，别去动新请求的状态
+    recState = 'idle'; recBusy = false;
+    rbShow('麦克风打不开', e.message, 'bad');
+    rbClose(1800);
+    return;
+  }
+  if (gen !== recGen){                    // 等授权的过程中又点了一下：不上传、不接管
+    stream.getTracks().forEach(t => t.stop());
+    return;
+  }
+  recStream = stream;
+  try{                                    // 真实的输入电平，静音时波形会趴下去
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    analyser.smoothingTimeConstant = 0.72;
+    src.connect(analyser);
+    freqBuf = new Uint8Array(analyser.frequencyBinCount);
+  }catch(e){ analyser = null; }
+
+  chunks = [];
+  try{
+    try{ recorder = new MediaRecorder(stream, {mimeType:'audio/webm'}); }
+    catch(_){ recorder = new MediaRecorder(stream); }
+  }catch(e){
+    if (gen !== recGen) return;
+    cleanupAudio(); recState = 'idle'; recBusy = false;
+    rbShow('无法开始录音', e.message, 'bad');
+    rbClose(1800);
+    return;
+  }
+  recorder.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop = async () => {
+    cleanupAudio();
+    recBusy = false;
+    if (discard){                         // 取消 / 太短：不上传，不占 ASR 队列
+      recState = 'idle';
+      setRecBtn(BTN_IDLE, false);
+      return;                             // 提示语与关闭时机由 endRec 负责
+    }
+    const blob = new Blob(chunks, {type:'audio/webm'});
+    const secs = ((Date.now() - recT0) / 1000).toFixed(1);
+    recState = 'asr';
+    setRecBtn(BTN_ASR, false);
+    rbShow('识别中…', `录音 ${secs} 秒，正在转文字`, '');
+    waveLoop();
+    try{
+      const r = await fetch('/api/asr', {method:'POST',
+        headers:{'Content-Type':'application/octet-stream','X-Audio-Ext':'webm'},
+        body: blob});
+      const j = await r.json();
+      recState = 'idle';
+      if (j.text){
+        rbShow(`听到「${j.text}」`, '已按这条指令继续', 'ok');
+        $('micTip').textContent = `听到：「${j.text}」`;
+      } else {
+        rbShow('没听清', '靠近麦克风再说一次，或直接打字', 'bad');
+        $('micTip').textContent = '';
+      }
+      if (j.text !== undefined) applyReply(j);
+      rbClose(900);
+    }catch(e){
+      recState = 'idle';
+      rbShow('识别失败', e.message, 'bad');
+      rbClose(1800);
+    }finally{
+      setRecBtn(BTN_IDLE, false);
+    }
+  };
+
+  if (gen !== recGen){                    // 初始化期间被取消：连 recorder 一起收掉
+    cleanupAudio(); recorder = null;
+    return;
+  }
+  recorder.start(200);
+  recState = 'recording'; recT0 = Date.now();
+  rbShow('正在听…', '再点一下按钮结束并识别', '');
+  startTicker(); waveLoop();
+  setRecBtn(BTN_REC, true);
+  clearTimeout(recMaxT);                  // 忘点结束的兜底
+  recMaxT = setTimeout(() => { if (recState === 'recording') endRec(false); }, REC_MAX_MS);
+}
+
+function endRec(force){
+  clearTimeout(recMaxT);
+  if (recState === 'arming'){             // 麦克风还没起来：作废这次请求，并立刻解锁按钮
+    recGen++; discard = true; recState = 'idle'; recBusy = false;
+    rbShow('已取消', '未上传任何音频', 'bad');
+    rbClose(900);
+    return;
+  }
+  if (recState !== 'recording') return;   // idle / stopping / asr：忽略重复点击
+  const secs = (Date.now() - recT0) / 1000;
+  setRecBtn(BTN_ASR, false);
+  if (force){                             // 主动取消：不上传
+    discard = true; recState = 'idle';
+    rbShow('已取消', '未上传任何音频', 'bad');
+    rbClose(700);
+  } else if (secs < 0.4){                 // 误触：不把一声"嗯"送进 ASR 队列
+    discard = true; recState = 'idle';
+    rbShow('太短了', '点一下开始，说完再点一下结束，不要连点两下', 'bad');
+    rbClose(1300);
+  } else {
+    recState = 'stopping';
+  }
+  if (recorder && recorder.state === 'recording'){
+    recorder.stop();
+  } else {
+    cleanupAudio(); recBusy = false; recState = 'idle';
+  }
+}
+
+// 点一下开始、再点一下结束。用 click 而不是 pointerdown/up：不做按住语义，
+// 也就不会因为鼠标滑出按钮、触屏抬起位置偏移而被误判成"松手"。
+recBtn.addEventListener('click', e => {
+  e.preventDefault();
+  if (recBtn.dataset.noasr === '1' || recBtn.disabled) return;
+  if (recState === 'idle') beginRec();
+  else endRec(false);                     // recording → 结束并识别；arming → 取消；其余内部忽略
+  recBtn.blur();                          // 避免按钮留焦点，空格键又被当成"再点一下"
+});
+$('rbCancel').addEventListener('click', () => {
+  if (recState === 'recording' || recState === 'arming') endRec(true);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && (recState === 'recording' || recState === 'arming')){
+    e.preventDefault();
+    endRec(true);
+  }
+});
+
+
+// ---------- 启动 ----------
+// 打开页面先取一次游标：日志从空白开始，只显示打开之后产生的新行；
+// 结果区 / 关键帧也不回放上一次的结论。避免「每次打开都看到上一轮的日志和结果」。
+async function initView(){
+  try{
+    const r = await fetch('/api/state?since=-1');
+    const s = await r.json();
+    since = s.seq || 0;
+    lastState = s.state || '';          // 不触发 showResult / speak 回放
+    lastStopKey = s.stop_summary ? String(s.stop_summary.ver || 0) : 'none';
+    const box = $('log');
+    box.textContent = '等待指令…';
+    box.dataset.started = '';
+    $('result').innerHTML = '<span>—</span><b>尚无执行记录</b>';
+    $('kf').innerHTML = '<span class="hint">执行结束后显示开局帧与末帧</span>';
+  }catch(e){ /* 服务没起来时交给 poll 报错 */ }
+}
+fetch('/api/asr_status').then(r=>r.json()).then(j=>{
+  if (j.state === 'missing' || j.state === 'error'){
+    $('micTip').textContent = '语音不可用（' + (j.err||'') + '），文字指令照常可用。';
+    $('rec').dataset.noasr = '1'; $('rec').disabled = true; $('rec').style.opacity = .5;
+  } else if (j.state === 'loading'){
+    $('micTip').textContent = '语音模型加载中（首次约 10–30 秒）…';
+  }
+});
+initView().then(() => { setInterval(poll, 800); poll(); });
+</script>
+</body>
+</html>

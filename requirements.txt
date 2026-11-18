@@ -1,0 +1,12 @@
+# 判定与评估（必需）
+numpy>=1.24
+opencv-python>=4.8
+
+# 数据集真值验收与离线评估（fit_blocks.py / label_eval.py 读 parquet 时需要）
+pandas>=2.0
+pyarrow>=14.0
+
+# 语音指令（可选）：未安装时指令层自动降级为纯文字输入
+faster-whisper>=1.0
+
+# 策略训练与真机推理不在本仓库内，随 LeRobot / LeLab 安装

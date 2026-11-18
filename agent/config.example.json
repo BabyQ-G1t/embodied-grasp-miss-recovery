@@ -1,0 +1,20 @@
+{
+  "_说明": "指令层配置模板。复制为 config.json 后按本机填写；agent/config.json 已被 .gitignore 忽略，不会被提交。留空的键走默认值，trial_dir 默认取本仓库的 ../grasp_retry，需要改时再新增该键。",
+  "lelab_host": "http://127.0.0.1:8000",
+  "python": "",
+  "policy_ref": "",
+  "group": "B",
+  "pos": "P1",
+  "target": 1,
+  "max_attempts": 3,
+  "retries": 2,
+  "cam": 0,
+  "duration": 280,
+  "outdir": "trial_logs",
+  "require_confirm": true,
+  "asr_model": "small",
+  "follower_port": "",
+  "follower_config": "test",
+  "task": "pick up the block and put it into the box",
+  "cameras": null
+}
